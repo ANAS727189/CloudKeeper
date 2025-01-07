@@ -11,6 +11,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "CloudKeeper",
   description: "CloudKeeper | The best cloud storage solution",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
@@ -20,6 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+    <link rel="icon" href="/favicon.ico" />
       <body
         className={`${poppins.variable} font-poppins antialiased`}
       >
