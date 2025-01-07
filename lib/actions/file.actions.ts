@@ -7,11 +7,79 @@ import { ID, Models, Query } from "node-appwrite";
 import { constructFileUrl, getFileType, parseStringify } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/actions/user.actions";
+import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+
+interface CompressionResult {
+    compressedFile: Buffer;
+    originalSize: number;
+    compressedSize: number;
+    compressionSavings: number;
+}
+
+interface UploadFileProps {
+    file: File;
+    ownerId: string;
+    accountId: string;
+    path: string;
+}
+
+type FileType = 'image' | 'document' | 'video' | 'audio' | 'other';
+
+const compressFile = async (file: Buffer, fileName: string): Promise<CompressionResult> => {
+    try {
+        const originalSize = file.length;
+
+        const stream = Readable.from(file);
+        const uploadPromise = new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    resource_type: "auto",
+                    folder: "compressed",
+                    quality: "auto",
+                    fetch_format: "auto",
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            
+            stream.pipe(uploadStream);
+        });
+
+        const result: any = await uploadPromise;
+        
+        const response = await fetch(result.secure_url);
+        const compressedFile = Buffer.from(await response.arrayBuffer());
+        
+        const compressedSize = compressedFile.length;
+        const compressionSavings = ((originalSize - compressedSize) / originalSize) * 100;
+
+        return {
+            compressedFile,
+            originalSize,
+            compressedSize,
+            compressionSavings
+        };
+    } catch (error) {
+        console.error("Compression failed:", error);
+        throw error;
+    }
+};
+
 
 const handleError = (error: unknown, message: string) => {
     console.log(error, message);
     throw error;
-    };
+};
 
 
     export const uploadFile = async ({
@@ -23,7 +91,12 @@ const handleError = (error: unknown, message: string) => {
     const { storage, databases } = await createAdminClient();
 
     try {
-        const inputFile = InputFile.fromBuffer(file, file.name);
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        const compressionResult = await compressFile(fileBuffer, file.name);
+        const inputFile = InputFile.fromBuffer(
+            compressionResult.compressedFile,
+            file.name
+        );
 
         const bucketFile = await storage.createFile(
         appwriteConfig.bucket,
@@ -31,32 +104,47 @@ const handleError = (error: unknown, message: string) => {
         inputFile,
         );
 
+        // const fileDocument = {
+        // type: getFileType(bucketFile.name).type,
+        // name: bucketFile.name,
+        // url: constructFileUrl(bucketFile.$id),
+        // extension: getFileType(bucketFile.name).extension,
+        // size: bucketFile.sizeOriginal,
+        // owner: ownerId,
+        // accountId,
+        // users: [],
+        // bucketFileId: bucketFile.$id,
+        // };
         const fileDocument = {
-        type: getFileType(bucketFile.name).type,
-        name: bucketFile.name,
-        url: constructFileUrl(bucketFile.$id),
-        extension: getFileType(bucketFile.name).extension,
-        size: bucketFile.sizeOriginal,
-        owner: ownerId,
-        accountId,
-        users: [],
-        bucketFileId: bucketFile.$id,
+            type: getFileType(bucketFile.name).type,
+            name: bucketFile.name,
+            url: constructFileUrl(bucketFile.$id),
+            extension: getFileType(bucketFile.name).extension,
+            size: compressionResult.compressedSize,
+            originalSize: compressionResult.originalSize,
+            compressionSavings: Math.round(compressionResult.compressionSavings * 100) / 100,
+            owner: ownerId,
+            accountId,
+            users: [],
+            bucketFileId: bucketFile.$id,
         };
+
+
         const newFile = await databases
-        .createDocument(
-            appwriteConfig.databaseId,
-            appwriteConfig.filesCollectionId,
-            ID.unique(),
-            fileDocument,
-        )
-        .catch(async (error: unknown) => {
-            await storage.deleteFile(appwriteConfig.bucket, bucketFile.$id);
-            handleError(error, "Failed to create file document");
-        });
+            .createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.filesCollectionId,
+                ID.unique(),
+                fileDocument,
+            )
+            .catch(async (error: unknown) => {
+                await storage.deleteFile(appwriteConfig.bucket, bucketFile.$id);
+                handleError(error, "Failed to create file document");
+            });
 
         revalidatePath(path);
         return parseStringify(newFile);
-    } catch (error) {
+    }  catch (error) {
         handleError(error, "Failed to upload file");
     }
     };
