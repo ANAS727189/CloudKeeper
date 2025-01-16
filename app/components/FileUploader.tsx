@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useState } from "react";
-
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { cn, convertFileToUrl, getFileType } from "@/lib/utils";
@@ -16,12 +15,16 @@ interface Props {
     ownerId: string;
     accountId: string;
     className?: string;
-    }
+}
 
-    const FileUploader = ({ ownerId, accountId, className }: Props) => {
+const FileUploader = ({ ownerId, accountId, className }: Props) => {
     const path = usePathname();
     const { toast } = useToast();
     const [files, setFiles] = useState<File[]>([]);
+    const [compressionInfo, setCompressionInfo] = useState<{[key: string]: {
+        originalSize: number;
+        compressedSize: number;
+    }}>({});
 
     const onDrop = useCallback(
         async (acceptedFiles: File[]) => {
@@ -29,30 +32,46 @@ interface Props {
 
         const uploadPromises = acceptedFiles.map(async (file) => {
             if (file.size > MAX_FILE_SIZE) {
-            setFiles((prevFiles) =>
-                prevFiles.filter((f) => f.name !== file.name),
-            );
-
-            return toast({
-                description: (
-                <p className="body-2 text-white">
-                    <span className="font-semibold">{file.name}</span> is too large.
-                    Max file size is 50MB.
-                </p>
-                ),
-                className: "error-toast",
-            });
-            }
-
-            return uploadFile({ file, ownerId, accountId, path }).then(
-            (uploadedFile) => {
-                if (uploadedFile) {
                 setFiles((prevFiles) =>
                     prevFiles.filter((f) => f.name !== file.name),
                 );
-                }
-            },
-            );
+
+                return toast({
+                    description: (
+                    <p className="body-2 text-white">
+                        <span className="font-semibold">{file.name}</span> is too large.
+                        Max file size is 50MB.
+                    </p>
+                    ),
+                    className: "error-toast",
+                });
+            }
+
+            const result = await uploadFile({ file, ownerId, accountId, path });
+            if (result) {
+                setCompressionInfo(prev => ({
+                    ...prev,
+                    [file.name]: {
+                        originalSize: result.prev,
+                        compressedSize: result.curr
+                    }
+                }));
+                
+                // Show compression result toast
+                toast({
+                    description: (
+                        <p className="body-2 text-white">
+                            File compressed from {(result.prev / 1024 / 1024).toFixed(2)}MB to {(result.curr / 1024 / 1024).toFixed(2)}MB
+                            ({((1 - result.curr / result.prev) * 100).toFixed(1)}% reduction)
+                        </p>
+                    ),
+                    className: "success-toast",
+                });
+
+                setFiles((prevFiles) =>
+                    prevFiles.filter((f) => f.name !== file.name),
+                );
+            }
         });
 
         await Promise.all(uploadPromises);
@@ -68,6 +87,11 @@ interface Props {
     ) => {
         e.stopPropagation();
         setFiles((prevFiles) => prevFiles.filter((file) => file.name !== fileName));
+        setCompressionInfo(prev => {
+            const newInfo = { ...prev };
+            delete newInfo[fileName];
+            return newInfo;
+        });
     };
 
     return (
@@ -88,6 +112,7 @@ interface Props {
 
             {files.map((file, index) => {
                 const { type, extension } = getFileType(file.name);
+                const compression = compressionInfo[file.name];
 
                 return (
                 <li
@@ -103,12 +128,19 @@ interface Props {
 
                     <div className="preview-item-name">
                         {file.name}
-                        <Image
-                        src="/assets/icons/file-loader.gif"
-                        width={80}
-                        height={26}
-                        alt="Loader"
-                        />
+                        <div className="flex items-center gap-2">
+                            <Image
+                                src="/assets/icons/file-loader.gif"
+                                width={80}
+                                height={26}
+                                alt="Loader"
+                            />
+                            {compression && (
+                                <span className="text-sm text-black">
+                                    {((compression.compressedSize / compression.originalSize) * 100).toFixed(1)}% of original
+                                </span>
+                            )}
+                        </div>
                     </div>
                     </div>
 

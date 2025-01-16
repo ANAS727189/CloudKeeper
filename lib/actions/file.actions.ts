@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 
 import { createAdminClient, createSessionClient } from "@/lib/appwrite";
@@ -55,6 +56,7 @@ const compressFile = async (file: Buffer, fileName: string): Promise<Compression
             stream.pipe(uploadStream);
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result: any = await uploadPromise;
         
         const response = await fetch(result.secure_url);
@@ -82,7 +84,7 @@ const handleError = (error: unknown, message: string) => {
 };
 
 
-    export const uploadFile = async ({
+export const uploadFile = async ({
     file,
     ownerId,
     accountId,
@@ -97,24 +99,13 @@ const handleError = (error: unknown, message: string) => {
             compressionResult.compressedFile,
             file.name
         );
-
+        console.log("compression: "+ (fileBuffer.length - compressionResult.compressedFile.length))
         const bucketFile = await storage.createFile(
-        appwriteConfig.bucket,
-        ID.unique(),
-        inputFile,
+            appwriteConfig.bucket,
+            ID.unique(),
+            inputFile,
         );
 
-        // const fileDocument = {
-        // type: getFileType(bucketFile.name).type,
-        // name: bucketFile.name,
-        // url: constructFileUrl(bucketFile.$id),
-        // extension: getFileType(bucketFile.name).extension,
-        // size: bucketFile.sizeOriginal,
-        // owner: ownerId,
-        // accountId,
-        // users: [],
-        // bucketFileId: bucketFile.$id,
-        // };
         const fileDocument = {
             type: getFileType(bucketFile.name).type,
             name: bucketFile.name,
@@ -127,7 +118,9 @@ const handleError = (error: unknown, message: string) => {
             accountId,
             users: [],
             bucketFileId: bucketFile.$id,
+            trashed: false, 
         };
+
 
 
         const newFile = await databases
@@ -143,8 +136,14 @@ const handleError = (error: unknown, message: string) => {
             });
 
         revalidatePath(path);
-        return parseStringify(newFile);
-    }  catch (error) {
+        console.log("prev:" + fileBuffer.length + "\n"+"curr:" + compressionResult.compressedFile.length)
+        return {
+            ret: parseStringify(newFile),
+            prev: fileBuffer.length,
+            curr: compressionResult.compressedFile.length
+        }
+        }
+      catch (error) {
         handleError(error, "Failed to upload file");
     }
     };
