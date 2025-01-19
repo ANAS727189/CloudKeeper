@@ -34,6 +34,31 @@ interface UploadFileProps {
 
 type FileType = 'image' | 'document' | 'video' | 'audio' | 'other';
 
+const getCompressionOptions = (fileName: string) => {
+    const { type } = getFileType(fileName);
+    switch(type) {
+        case 'image':
+            return {
+                quality: "auto",
+                fetch_format: "auto",
+                compression: "low",
+                resource_type: "image" as const
+            };
+        case 'video':
+            return {
+                quality: "auto",
+                resource_type: "video" as const
+            };
+        default:
+            return {
+                quality: "auto",
+                fetch_format: "auto",
+                resource_type: "auto" as const
+            };
+    }
+};
+
+
 const compressFile = async (file: Buffer, fileName: string): Promise<CompressionResult> => {
     try {
         const originalSize = file.length;
@@ -42,10 +67,8 @@ const compressFile = async (file: Buffer, fileName: string): Promise<Compression
         const uploadPromise = new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 {
-                    resource_type: "auto",
                     folder: "compressed",
-                    quality: "auto",
-                    fetch_format: "auto",
+                    ...getCompressionOptions(fileName)
                 },
                 (error, result) => {
                     if (error) reject(error);
@@ -63,6 +86,15 @@ const compressFile = async (file: Buffer, fileName: string): Promise<Compression
         const compressedFile = Buffer.from(await response.arrayBuffer());
         
         const compressedSize = compressedFile.length;
+        if (compressedSize >= originalSize) {
+            console.log("Compression would increase file size, using original");
+            return {
+                compressedFile: file,
+                originalSize,
+                compressedSize: originalSize,
+                compressionSavings: 0
+            };
+        }
         const compressionSavings = ((originalSize - compressedSize) / originalSize) * 100;
 
         return {
@@ -143,7 +175,7 @@ export const uploadFile = async ({
             curr: compressionResult.compressedFile.length
         }
         }
-      catch (error) {
+        catch (error) {
         handleError(error, "Failed to upload file");
     }
     };

@@ -38,7 +38,7 @@ const FileUploader = ({ ownerId, accountId, className }: Props) => {
 
                 return toast({
                     description: (
-                    <p className="body-2 text-white">
+                    <p className="body-2 text-red">
                         <span className="font-semibold">{file.name}</span> is too large.
                         Max file size is 50MB.
                     </p>
@@ -57,10 +57,10 @@ const FileUploader = ({ ownerId, accountId, className }: Props) => {
                     }
                 }));
                 
-                // Show compression result toast
+        
                 toast({
                     description: (
-                        <p className="body-2 text-white">
+                        <p className="body-2 text-emerald-700">
                             File compressed from {(result.prev / 1024 / 1024).toFixed(2)}MB to {(result.curr / 1024 / 1024).toFixed(2)}MB
                             ({((1 - result.curr / result.prev) * 100).toFixed(1)}% reduction)
                         </p>

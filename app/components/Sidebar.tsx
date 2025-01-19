@@ -70,6 +70,7 @@ interface Props {
                 className="w-full"
             />
 
+
             <div className="sidebar-user-info">
                 <Image
                 src={avatar}
@@ -79,8 +80,8 @@ interface Props {
                 className="sidebar-user-avatar"
                 />
                 <div className="hidden lg:block">
-                <p className="subtitle-2 capitalize">{fullName}</p>
-                <p className="caption">{email}</p>
+                <p className="subtitle-2 capitalize text-gray-300">{fullName}</p>
+                <p className="caption text-gray-500">{email}</p>
                 </div>
             </div>
             </aside>

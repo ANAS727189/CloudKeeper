@@ -19,8 +19,6 @@ const Page = async ({ searchParams, params }: SearchParamProps) => {
         getTotalSpaceUsed(),
     ]);
 
-    console.log("trash"+trash);
-    console.log(trashtotalSpace + "trash");
 
     return (
         <div className="page-container">

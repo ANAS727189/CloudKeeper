@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { FileText, ImageIcon, Video, Music, File, FileCode, FileSpreadsheet, FileType, FileVideo, FileAudio, FileImage } from 'lucide-react';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -118,21 +119,20 @@ export const getFileIcon = (
   switch (extension) {
     // Document
     case "pdf":
-      return "/assets/icons/file-pdf.svg";
+      return FileText;
     case "doc":
-      return "/assets/icons/file-doc.svg";
     case "docx":
-      return "/assets/icons/file-docx.svg";
+      return FileText;
     case "csv":
-      return "/assets/icons/file-csv.svg";
+      return FileSpreadsheet;
     case "txt":
-      return "/assets/icons/file-txt.svg";
+      return FileText;
     case "xls":
     case "xlsx":
-      return "/assets/icons/file-document.svg";
+      return FileSpreadsheet;
     // Image
     case "svg":
-      return "/assets/icons/file-image.svg";
+      return FileImage;
     // Video
     case "mkv":
     case "mov":
@@ -143,7 +143,7 @@ export const getFileIcon = (
     case "webm":
     case "m4v":
     case "3gp":
-      return "/assets/icons/file-video.svg";
+      return FileVideo;
     // Audio
     case "mp3":
     case "mpeg":
@@ -155,20 +155,20 @@ export const getFileIcon = (
     case "m4a":
     case "aiff":
     case "alac":
-      return "/assets/icons/file-audio.svg";
+      return FileAudio;
 
     default:
       switch (type) {
         case "image":
-          return "/assets/icons/file-image.svg";
+          return FileImage;
         case "document":
-          return "/assets/icons/file-document.svg";
+          return FileText;
         case "video":
-          return "/assets/icons/file-video.svg";
+          return FileVideo;
         case "audio":
-          return "/assets/icons/file-audio.svg";
+          return FileAudio;
         default:
-          return "/assets/icons/file-other.svg";
+          return File;
       }
   }
 };
@@ -190,14 +190,14 @@ export const getUsageSummary = (totalSpace: any) => {
       title: "Documents",
       size: totalSpace.document.size,
       latestDate: totalSpace.document.latestDate,
-      icon: "/assets/icons/file-document-light.svg",
+      icon: FileText,
       url: "/documents",
     },
     {
       title: "Images",
       size: totalSpace.image.size,
       latestDate: totalSpace.image.latestDate,
-      icon: "/assets/icons/file-image-light.svg",
+      icon: ImageIcon,
       url: "/images",
     },
     {
@@ -207,14 +207,14 @@ export const getUsageSummary = (totalSpace: any) => {
         totalSpace.video.latestDate > totalSpace.audio.latestDate
           ? totalSpace.video.latestDate
           : totalSpace.audio.latestDate,
-      icon: "/assets/icons/file-video-light.svg",
+      icon: Video,
       url: "/media",
     },
     {
       title: "Others",
       size: totalSpace.other.size,
       latestDate: totalSpace.other.latestDate,
-      icon: "/assets/icons/file-other-light.svg",
+      icon: File,
       url: "/others",
     },
   ];
@@ -234,3 +234,4 @@ export const getFileTypesParams = (type: string) => {
       return ["document"];
   }
 };
+
