@@ -36,7 +36,7 @@ import {
     const pathname = usePathname();
 
     return (
-        <header className="mobile-header">
+        <header className="mobile-header bg-card text-card-foreground">
         <Image
             src="/assets/icons/logo-full-brand.svg"
             alt="logo"
@@ -54,7 +54,7 @@ import {
                 height={30}
             />
             </SheetTrigger>
-            <SheetContent className="shad-sheet h-screen px-3">
+            <SheetContent className="shad-sheet h-screen px-3 bg-card text-card-foreground">
             <SheetTitle>
                 <div className="header-user">
                 <Image
@@ -78,8 +78,8 @@ import {
                     <Link key={name} href={url} className="lg:w-full">
                     <li
                         className={cn(
-                        "mobile-nav-item",
-                        pathname === url && "shad-active",
+                            "mobile-nav-item text-muted-foreground hover:text-foreground",
+                        pathname === url && "shad-active bg-accent text-accent-foreground",
                         )}
                     >
                         <Image
@@ -88,8 +88,8 @@ import {
                         width={24}
                         height={24}
                         className={cn(
-                            "nav-icon",
-                            pathname === url && "nav-icon-active",
+                            "mobile-nav-item text-muted-foreground hover:text-foreground",
+                            pathname === url && "shad-active bg-accent text-accent-foreground",
                         )}
                         />
                         <p>{name}</p>

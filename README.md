@@ -10,3 +10,4 @@ AI-Powered File Management:
 
 - Integrate AI capabilities to automatically categorize and tag files based on their content.
 - Implement smart search functionality that can understand natural language queries and search within document contents.
+

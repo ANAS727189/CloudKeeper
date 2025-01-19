@@ -1,6 +1,6 @@
 import React from "react";
 import Sort from "../../components/Sort";
-import { getFiles } from "@/lib/actions/file.actions";
+import { getFiles, getTotalSpaceUsed } from "@/lib/actions/file.actions";
 import { Models } from "node-appwrite";
 import Card from "../../components/Card"
 import { getFileTypesParams } from "@/lib/utils";
@@ -13,6 +13,12 @@ const Page = async ({ searchParams, params }: SearchParamProps) => {
     const types = getFileTypesParams(type) as FileType[];
 
     const files = await getFiles({ types, searchText, sort });
+
+    const [trash, trashtotalSpace] = await Promise.all([
+        getFiles({ types: [], limit: 10 }),
+        getTotalSpaceUsed(),
+    ]);
+
 
     return (
         <div className="page-container">

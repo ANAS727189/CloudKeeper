@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 
 import { createAdminClient, createSessionClient } from "@/lib/appwrite";
@@ -7,14 +8,115 @@ import { ID, Models, Query } from "node-appwrite";
 import { constructFileUrl, getFileType, parseStringify } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/actions/user.actions";
+import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+
+interface CompressionResult {
+    compressedFile: Buffer;
+    originalSize: number;
+    compressedSize: number;
+    compressionSavings: number;
+}
+
+interface UploadFileProps {
+    file: File;
+    ownerId: string;
+    accountId: string;
+    path: string;
+}
+
+type FileType = 'image' | 'document' | 'video' | 'audio' | 'other';
+
+const getCompressionOptions = (fileName: string) => {
+    const { type } = getFileType(fileName);
+    switch(type) {
+        case 'image':
+            return {
+                quality: "auto",
+                fetch_format: "auto",
+                compression: "low",
+                resource_type: "image" as const
+            };
+        case 'video':
+            return {
+                quality: "auto",
+                resource_type: "video" as const
+            };
+        default:
+            return {
+                quality: "auto",
+                fetch_format: "auto",
+                resource_type: "auto" as const
+            };
+    }
+};
+
+
+const compressFile = async (file: Buffer, fileName: string): Promise<CompressionResult> => {
+    try {
+        const originalSize = file.length;
+
+        const stream = Readable.from(file);
+        const uploadPromise = new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: "compressed",
+                    ...getCompressionOptions(fileName)
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            
+            stream.pipe(uploadStream);
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result: any = await uploadPromise;
+        
+        const response = await fetch(result.secure_url);
+        const compressedFile = Buffer.from(await response.arrayBuffer());
+        
+        const compressedSize = compressedFile.length;
+        if (compressedSize >= originalSize) {
+            console.log("Compression would increase file size, using original");
+            return {
+                compressedFile: file,
+                originalSize,
+                compressedSize: originalSize,
+                compressionSavings: 0
+            };
+        }
+        const compressionSavings = ((originalSize - compressedSize) / originalSize) * 100;
+
+        return {
+            compressedFile,
+            originalSize,
+            compressedSize,
+            compressionSavings
+        };
+    } catch (error) {
+        console.error("Compression failed:", error);
+        throw error;
+    }
+};
+
 
 const handleError = (error: unknown, message: string) => {
     console.log(error, message);
     throw error;
-    };
+};
 
 
-    export const uploadFile = async ({
+export const uploadFile = async ({
     file,
     ownerId,
     accountId,
@@ -23,40 +125,57 @@ const handleError = (error: unknown, message: string) => {
     const { storage, databases } = await createAdminClient();
 
     try {
-        const inputFile = InputFile.fromBuffer(file, file.name);
-
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        const compressionResult = await compressFile(fileBuffer, file.name);
+        const inputFile = InputFile.fromBuffer(
+            compressionResult.compressedFile,
+            file.name
+        );
+        console.log("compression: "+ (fileBuffer.length - compressionResult.compressedFile.length))
         const bucketFile = await storage.createFile(
-        appwriteConfig.bucket,
-        ID.unique(),
-        inputFile,
+            appwriteConfig.bucket,
+            ID.unique(),
+            inputFile,
         );
 
         const fileDocument = {
-        type: getFileType(bucketFile.name).type,
-        name: bucketFile.name,
-        url: constructFileUrl(bucketFile.$id),
-        extension: getFileType(bucketFile.name).extension,
-        size: bucketFile.sizeOriginal,
-        owner: ownerId,
-        accountId,
-        users: [],
-        bucketFileId: bucketFile.$id,
+            type: getFileType(bucketFile.name).type,
+            name: bucketFile.name,
+            url: constructFileUrl(bucketFile.$id),
+            extension: getFileType(bucketFile.name).extension,
+            size: compressionResult.compressedSize,
+            originalSize: compressionResult.originalSize,
+            compressionSavings: Math.round(compressionResult.compressionSavings * 100) / 100,
+            owner: ownerId,
+            accountId,
+            users: [],
+            bucketFileId: bucketFile.$id,
+            trashed: false, 
         };
+
+
+
         const newFile = await databases
-        .createDocument(
-            appwriteConfig.databaseId,
-            appwriteConfig.filesCollectionId,
-            ID.unique(),
-            fileDocument,
-        )
-        .catch(async (error: unknown) => {
-            await storage.deleteFile(appwriteConfig.bucket, bucketFile.$id);
-            handleError(error, "Failed to create file document");
-        });
+            .createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.filesCollectionId,
+                ID.unique(),
+                fileDocument,
+            )
+            .catch(async (error: unknown) => {
+                await storage.deleteFile(appwriteConfig.bucket, bucketFile.$id);
+                handleError(error, "Failed to create file document");
+            });
 
         revalidatePath(path);
-        return parseStringify(newFile);
-    } catch (error) {
+        console.log("prev:" + fileBuffer.length + "\n"+"curr:" + compressionResult.compressedFile.length)
+        return {
+            ret: parseStringify(newFile),
+            prev: fileBuffer.length,
+            curr: compressionResult.compressedFile.length
+        }
+        }
+        catch (error) {
         handleError(error, "Failed to upload file");
     }
     };
