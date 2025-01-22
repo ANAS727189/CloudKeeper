@@ -148,7 +148,7 @@ const ActionDropdown = ({ file }: { file: Models.Document }) => {
                         </p>
                     )}
                     {value === "ai-query" && (
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 text-gray-500">
                             <Textarea
                                 placeholder="Ask a question about this file..."
                                 value={aiQuery}
