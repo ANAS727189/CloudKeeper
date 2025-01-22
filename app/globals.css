@@ -346,9 +346,11 @@
   .preview-item-name {
     @apply subtitle-2 mb-2 line-clamp-1 max-w-[300px] !important;
   }
-
   .error-toast {
-    @apply bg-red !rounded-[10px] !important;
+    @apply bg-red text-white !rounded-[10px] !important;
+  }
+  .success-toast {
+    @apply bg-emerald-200 text-white !rounded-[10px] !important;
   }
 
   /* Header */
